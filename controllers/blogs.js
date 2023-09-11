@@ -12,16 +12,7 @@ blogRouter.get("/", async (request, response) => {
 blogRouter.post("/", async (request, response, next) => {
 	const body = request.body;
 
-	const decodedToken = jwt.verify(
-		helper.getTokenFrom(request),
-		process.env.SECRET
-	);
-
-	if (!decodedToken.id) {
-		return response.status(401).json({ error: "token invalid" });
-	}
-
-	const user = await User.findById(decodedToken.id).populate("blogs");
+	const user = await helper.userExtractor(request);
 
 	console.log("users", user);
 
@@ -44,29 +35,19 @@ blogRouter.post("/", async (request, response, next) => {
 });
 
 blogRouter.delete("/:id", async (request, response) => {
-	console.log(request.params.id);
-	const decodedToken = jwt.verify(
-		helper.getTokenFrom(request),
-		process.env.SECRET
-	);
-
-	console.log(decodedToken);
+	const user = await helper.userExtractor(request);
 
 	const blog = await Blog.findById(request.params.id);
 
-	console.log(blog);
-
-	if (decodedToken.id === blog.user.toString()) {
+	if (user._id === blog.user.toString()) {
 		const deletedBlog = await Blog.findByIdAndRemove(request.params.id);
 		response
 			.status(200)
 			.json({ message: "successfully deleted blog", deletedBlog });
 	} else {
-		response
-			.status(400)
-			.json({
-				error: "invalid attempt; logged in user does not have authorization",
-			});
+		response.status(400).json({
+			error: "invalid attempt; logged in user does not have authorization",
+		});
 	}
 	response.status(204).end();
 });
